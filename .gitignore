@@ -36,3 +36,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+
+# Local Terraform backend configuration
+terraform/infrastructure/backend.hcl
