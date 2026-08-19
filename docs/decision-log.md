@@ -39,3 +39,19 @@ Outbound internet access will be provided through the NAT Gateway.
 **Status:** Accepted
 
 The `main` branch will be protected. Development changes will be made on separate branches and merged through Pull Requests.
+
+---
+
+## ADR-005: Use S3 Remote State and DynamoDB Locking
+
+**Status:** Accepted
+
+The main Terraform infrastructure state is stored in Amazon S3 rather than relying on local state.
+
+The S3 state bucket uses versioning, server-side encryption and Block Public Access.
+
+The internship specification explicitly requires DynamoDB state locking, so a DynamoDB table using the `LockID` string partition key is provisioned.
+
+Current Terraform versions also support S3 lockfiles, so the backend is configured with S3 locking while retaining DynamoDB locking to satisfy the project specification.
+
+Backend infrastructure is provisioned separately through `terraform/bootstrap/` to solve the backend bootstrap dependency.
