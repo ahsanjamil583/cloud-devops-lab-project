@@ -1,0 +1,38 @@
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.secrets/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+terraform.tfvars
+*.auto.tfvars
+
+# Ansible sensitive/local files
+vault-password.txt
+.vault-pass
+*.retry
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+
+# OS/editor
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
