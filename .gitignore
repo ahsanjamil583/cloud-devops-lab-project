@@ -17,8 +17,10 @@ terraform.tfvars
 *.auto.tfvars
 
 # Ansible sensitive/local files
+ansible/inventory/hosts.ini
 vault-password.txt
 .vault-pass
+ansible/.vault_pass
 *.retry
 
 # Node.js
