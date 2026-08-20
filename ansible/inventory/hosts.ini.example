@@ -1,0 +1,10 @@
+[management]
+management ansible_host=<MANAGEMENT_PUBLIC_IP>
+
+[app]
+app ansible_host=<APP_PRIVATE_IP> ansible_ssh_common_args='-o ProxyJump=ubuntu@<MANAGEMENT_PUBLIC_IP> -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes'
+
+[all:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=~/.ssh/cloud-devops-lab-project
+ansible_python_interpreter=/usr/bin/python3

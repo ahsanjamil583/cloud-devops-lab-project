@@ -1,0 +1,145 @@
+---
+- name: Configure DevOps project EC2 servers
+  hosts: all
+  become: true
+
+  tasks:
+    # --------------------------------------------------------
+    # Base packages
+    # --------------------------------------------------------
+
+    - name: Update apt cache and install required packages
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - docker.io
+          - docker-compose-v2
+          - ufw
+          - fail2ban
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    # --------------------------------------------------------
+    # Docker
+    # --------------------------------------------------------
+
+    - name: Ensure Docker service is enabled and running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    # --------------------------------------------------------
+    # DevOps user
+    # --------------------------------------------------------
+
+    - name: Create devops user
+      ansible.builtin.user:
+        name: devops
+        shell: /bin/bash
+        create_home: true
+        groups:
+          - sudo
+          - docker
+        append: true
+        state: present
+
+    - name: Add SSH public key for devops user
+      ansible.posix.authorized_key:
+        user: devops
+        state: present
+        key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/cloud-devops-lab-project.pub') }}"
+
+    - name: Allow devops user passwordless sudo
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/devops
+        content: |
+          devops ALL=(ALL) NOPASSWD:ALL
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "/usr/sbin/visudo -cf %s"
+
+    # --------------------------------------------------------
+    # SSH hardening
+    # --------------------------------------------------------
+
+    - name: Configure SSH security hardening
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/00-devops-hardening.conf
+        content: |
+          PermitRootLogin no
+          PasswordAuthentication no
+          PubkeyAuthentication yes
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart SSH
+
+    - name: Validate SSH configuration
+      ansible.builtin.command:
+        cmd: /usr/sbin/sshd -t
+      changed_when: false
+
+    # --------------------------------------------------------
+    # UFW firewall
+    # --------------------------------------------------------
+
+    - name: Allow SSH through UFW
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+
+    - name: Set UFW default incoming policy
+      community.general.ufw:
+        direction: incoming
+        policy: deny
+
+    - name: Set UFW default outgoing policy
+      community.general.ufw:
+        direction: outgoing
+        policy: allow
+
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+
+    # --------------------------------------------------------
+    # Fail2Ban
+    # --------------------------------------------------------
+
+    - name: Configure Fail2Ban SSH jail
+      ansible.builtin.copy:
+        dest: /etc/fail2ban/jail.d/sshd.local
+        content: |
+          [sshd]
+          enabled = true
+          port = ssh
+          backend = systemd
+          maxretry = 5
+          findtime = 10m
+          bantime = 10m
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Fail2Ban
+
+    - name: Ensure Fail2Ban is enabled and running
+      ansible.builtin.service:
+        name: fail2ban
+        state: started
+        enabled: true
+
+  handlers:
+    - name: Restart SSH
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+
+    - name: Restart Fail2Ban
+      ansible.builtin.service:
+        name: fail2ban
+        state: restarted
