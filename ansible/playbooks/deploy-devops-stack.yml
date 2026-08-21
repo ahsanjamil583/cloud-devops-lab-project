@@ -58,6 +58,14 @@
         group: devops
         mode: "0755"
 
+    - name: Create Jenkins build directory
+      ansible.builtin.file:
+        path: "{{ stack_dir }}/jenkins"
+        state: directory
+        owner: devops
+        group: devops
+        mode: "0755"
+
 
     # --------------------------------------------------------
     # Docker Compose files
@@ -97,6 +105,11 @@
     # --------------------------------------------------------
     # Secure environment file
     # --------------------------------------------------------
+    - name: Read Docker socket group ID
+      ansible.builtin.command:
+        cmd: stat -c '%g' /var/run/docker.sock
+      register: docker_socket_gid
+      changed_when: false
 
     - name: Render stack environment secrets
       ansible.builtin.template:
@@ -111,6 +124,21 @@
     # --------------------------------------------------------
     # Pull and start services
     # --------------------------------------------------------
+    - name: Copy Jenkins Dockerfile
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/jenkins/Dockerfile
+        dest: "{{ stack_dir }}/jenkins/Dockerfile"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Jenkins plugin list
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/jenkins/plugins.txt
+        dest: "{{ stack_dir }}/jenkins/plugins.txt"
+        owner: devops
+        group: devops
+        mode: "0644"
 
     - name: Deploy Docker Compose stack
       community.docker.docker_compose_v2:
@@ -119,6 +147,8 @@
           - compose.yml
         state: present
         pull: missing
+        build: always
+        ignore_build_events: true
       become_user: devops
 
 
