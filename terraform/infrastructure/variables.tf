@@ -18,7 +18,7 @@ variable "trusted_ssh_cidr" {
 variable "management_instance_type" {
   description = "EC2 instance type for Bastion/DevOps management host"
   type        = string
-  default     = "t3.micro"
+  default     = "m7i-flex.large"
 }
 
 variable "app_instance_type" {
