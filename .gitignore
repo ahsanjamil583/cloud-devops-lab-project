@@ -41,3 +41,6 @@ Thumbs.db
 
 # Local Terraform backend configuration
 terraform/infrastructure/backend.hcl
+
+# Docker Compose environment secrets
+docker/devops-stack/.env
