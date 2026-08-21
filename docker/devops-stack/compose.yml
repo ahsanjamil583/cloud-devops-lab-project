@@ -6,7 +6,11 @@ services:
   # Jenkins
   # ==========================================================
   jenkins:
-    image: jenkins/jenkins:lts-jdk21
+    build:
+      context: ./jenkins
+      dockerfile: Dockerfile
+
+    image: cloud-devops-jenkins:lts
     container_name: devops-jenkins
     restart: unless-stopped
 
@@ -16,8 +20,12 @@ services:
     expose:
       - "8080"
 
+    group_add:
+      - "${DOCKER_GID}"
+
     volumes:
       - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
 
     networks:
       - devops-network
