@@ -1,0 +1,116 @@
+---
+- name: Deploy DevOps Docker Compose stack
+  hosts: management
+  become: true
+
+  vars_files:
+    - ../group_vars/all/vault.yml
+
+  vars:
+    stack_dir: /opt/cloud-devops-stack
+
+  tasks:
+
+    # --------------------------------------------------------
+    # SonarQube host requirements
+    # --------------------------------------------------------
+
+    - name: Configure vm.max_map_count for SonarQube
+      ansible.posix.sysctl:
+        name: vm.max_map_count
+        value: "524288"
+        state: present
+        reload: true
+
+    - name: Configure fs.file-max for SonarQube
+      ansible.posix.sysctl:
+        name: fs.file-max
+        value: "131072"
+        state: present
+        reload: true
+
+
+    # --------------------------------------------------------
+    # Stack directories
+    # --------------------------------------------------------
+
+    - name: Create DevOps stack directory
+      ansible.builtin.file:
+        path: "{{ stack_dir }}"
+        state: directory
+        owner: devops
+        group: devops
+        mode: "0755"
+
+    - name: Create Prometheus directory
+      ansible.builtin.file:
+        path: "{{ stack_dir }}/prometheus"
+        state: directory
+        owner: devops
+        group: devops
+        mode: "0755"
+
+    - name: Create Nginx directory
+      ansible.builtin.file:
+        path: "{{ stack_dir }}/nginx"
+        state: directory
+        owner: devops
+        group: devops
+        mode: "0755"
+
+
+    # --------------------------------------------------------
+    # Docker Compose files
+    # --------------------------------------------------------
+
+    - name: Copy Compose configuration
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/compose.yml
+        dest: "{{ stack_dir }}/compose.yml"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Prometheus configuration
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/prometheus/prometheus.yml
+        dest: "{{ stack_dir }}/prometheus/prometheus.yml"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Nginx configuration
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/nginx/default.conf
+        dest: "{{ stack_dir }}/nginx/default.conf"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+
+    # --------------------------------------------------------
+    # Secure environment file
+    # --------------------------------------------------------
+
+    - name: Render stack environment secrets
+      ansible.builtin.template:
+        src: ../templates/devops-stack.env.j2
+        dest: "{{ stack_dir }}/.env"
+        owner: devops
+        group: devops
+        mode: "0600"
+      no_log: true
+
+
+    # --------------------------------------------------------
+    # Pull and start services
+    # --------------------------------------------------------
+
+    - name: Deploy Docker Compose stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ stack_dir }}"
+        files:
+          - compose.yml
+        state: present
+        pull: missing
+      become_user: devops
