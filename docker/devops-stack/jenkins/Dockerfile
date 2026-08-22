@@ -2,9 +2,6 @@ FROM jenkins/jenkins:lts-jdk21
 
 USER root
 
-# ------------------------------------------------------------
-# Build tools required by our CI pipeline
-# ------------------------------------------------------------
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
@@ -13,6 +10,9 @@ RUN apt-get update \
        git \
        nodejs \
        npm \
+       python3 \
+       python3-venv \
+       openssh-client \
     && install -m 0755 -d /etc/apt/keyrings \
     && curl -fsSL https://download.docker.com/linux/debian/gpg \
        -o /etc/apt/keyrings/docker.asc \
@@ -23,9 +23,18 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
-# ------------------------------------------------------------
-# Jenkins plugins managed as code
-# ------------------------------------------------------------
+# Ansible virtual environment.
+RUN python3 -m venv /opt/ansible \
+    && /opt/ansible/bin/pip install --no-cache-dir \
+       "ansible-core>=2.17,<2.20"
+
+ENV PATH="/opt/ansible/bin:${PATH}"
+
+# Docker modules required by the deployment playbook.
+RUN ansible-galaxy collection install \
+    community.docker:5.2.1 \
+    -p /usr/share/ansible/collections
+
 COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
 
 RUN jenkins-plugin-cli \
