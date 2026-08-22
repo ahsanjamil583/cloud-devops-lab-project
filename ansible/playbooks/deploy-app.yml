@@ -1,0 +1,120 @@
+---
+- name: Deploy Cloud DevOps Lab application
+  hosts: app
+  become: true
+  gather_facts: false
+
+  vars:
+    app_container_name: cloud-devops-lab-app
+    app_host_port: "3000"
+    app_container_port: "3003"
+
+  pre_tasks:
+    - name: Ensure application image was supplied
+      ansible.builtin.assert:
+        that:
+          - app_image is defined
+          - app_image | length > 0
+        fail_msg: >
+          app_image is required.
+          Example:
+          -e app_image=username/cloud-devops-lab-app:123-abcdef1
+
+    - name: Verify Docker is available
+      ansible.builtin.command:
+        cmd: docker --version
+      changed_when: false
+
+  tasks:
+    - name: Read currently deployed container
+      community.docker.docker_container_info:
+        name: "{{ app_container_name }}"
+      register: current_app
+
+    - name: Remember currently deployed image
+      ansible.builtin.set_fact:
+        previous_image: >-
+          {{
+            current_app.container.Config.Image
+            if current_app.exists
+            else ''
+          }}
+
+    - name: Show deployment transition
+      ansible.builtin.debug:
+        msg:
+          - "Previous image: {{ previous_image | default('none', true) }}"
+          - "Requested image: {{ app_image }}"
+
+    - name: Pull requested image
+      community.docker.docker_image_pull:
+        name: "{{ app_image }}"
+
+    - name: Deploy and validate application
+      block:
+
+        - name: Start application container
+          community.docker.docker_container:
+            name: "{{ app_container_name }}"
+            image: "{{ app_image }}"
+            state: healthy
+            healthy_wait_timeout: 120
+            pull: never
+            restart_policy: unless-stopped
+
+            published_ports:
+              - "127.0.0.1:{{ app_host_port }}:{{ app_container_port }}"
+
+        - name: Verify application health endpoint
+          ansible.builtin.uri:
+            url: "http://127.0.0.1:{{ app_host_port }}/health"
+            method: GET
+            status_code: 200
+            return_content: true
+          register: app_health
+          retries: 10
+          delay: 3
+          until: app_health.status == 200
+
+        - name: Show deployment success
+          ansible.builtin.debug:
+            msg:
+              - "Application deployment successful."
+              - "Image: {{ app_image }}"
+              - "Health status: {{ app_health.status }}"
+
+      rescue:
+
+        - name: Report failed deployment
+          ansible.builtin.debug:
+            msg:
+              - "New deployment failed."
+              - "Attempting rollback."
+              - "Previous image: {{ previous_image | default('none', true) }}"
+
+        - name: Roll back to previous image
+          community.docker.docker_container:
+            name: "{{ app_container_name }}"
+            image: "{{ previous_image }}"
+            state: healthy
+            healthy_wait_timeout: 120
+            pull: never
+            restart_policy: unless-stopped
+            published_ports:
+              - "127.0.0.1:{{ app_host_port }}:{{ app_container_port }}"
+          when:
+            - previous_image is defined
+            - previous_image | length > 0
+
+        - name: Remove failed first deployment
+          community.docker.docker_container:
+            name: "{{ app_container_name }}"
+            state: absent
+          when:
+            - previous_image is not defined or previous_image | length == 0
+
+        - name: Stop pipeline after failed deployment
+          ansible.builtin.fail:
+            msg: >
+              Application deployment failed.
+              Previous version was restored when available.

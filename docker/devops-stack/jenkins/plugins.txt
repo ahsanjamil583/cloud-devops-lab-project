@@ -4,3 +4,4 @@ github
 credentials-binding
 pipeline-stage-view
 sonar:2.18.3
+ssh-credentials
