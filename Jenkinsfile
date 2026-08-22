@@ -208,11 +208,12 @@ pipeline {
                     playbooks/deploy-app.yml \
                     --limit "$APP_INVENTORY_GROUP" \
                     --private-key "$ANSIBLE_KEY" \
-                    -e "app_image=$DEPLOY_IMAGE"'''
+                    -e "app_image=$DEPLOY_IMAGE"
+                    '''
                 }
             }
         }
-
+    }
     post {
 
         success {
