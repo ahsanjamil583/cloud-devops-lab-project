@@ -4,7 +4,7 @@
   become: true
 
   vars_files:
-    - ../group_vars/all/vault.yml
+    - ../group_vars/management/vault.yml
 
   vars:
     stack_dir: /opt/cloud-devops-stack

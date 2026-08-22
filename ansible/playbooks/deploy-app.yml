@@ -7,7 +7,7 @@
   vars:
     app_container_name: cloud-devops-lab-app
     app_host_port: "3000"
-    app_container_port: "3000"
+    app_container_port: "3003"
 
   pre_tasks:
     - name: Ensure application image was supplied

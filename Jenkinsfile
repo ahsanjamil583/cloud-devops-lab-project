@@ -185,38 +185,33 @@ pipeline {
             }
         }
 
-        stage('Deploy to Private App EC2') {
-            steps {
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: 'app-deploy-ssh',
-                        keyFileVariable: 'ANSIBLE_KEY',
-                        usernameVariable: 'ANSIBLE_USER'
-                    )
-                ]) {
-                    sh '''
-                        cd ansible
+    stage('Deploy to Private App EC2') {
+        steps {
+            withCredentials([
+            sshUserPrivateKey(
+            credentialsId: 'app-deploy-ssh',
+            keyFileVariable: 'ANSIBLE_KEY'
+        )
+        ]) {
+            sh '''
+                cd ansible
 
-                        echo "Checking Ansible target..."
-                        ansible "$APP_INVENTORY_GROUP" \
-                            -m ping \
-                            -u "$ANSIBLE_USER" \
-                            --private-key "$ANSIBLE_KEY"
+                echo "Checking Ansible target..."
+                ansible "$APP_INVENTORY_GROUP" \
+                    -m ping \
+                    --private-key "$ANSIBLE_KEY"
 
-                        echo "Deploying image:"
-                        echo "$DEPLOY_IMAGE"
+                echo "Deploying image:"
+                echo "$DEPLOY_IMAGE"
 
-                        ansible-playbook \
-                            playbooks/deploy-app.yml \
-                            --limit "$APP_INVENTORY_GROUP" \
-                            -u "$ANSIBLE_USER" \
-                            --private-key "$ANSIBLE_KEY" \
-                            -e "app_image=$DEPLOY_IMAGE"
-                    '''
+                ansible-playbook \
+                    playbooks/deploy-app.yml \
+                    --limit "$APP_INVENTORY_GROUP" \
+                    --private-key "$ANSIBLE_KEY" \
+                    -e "app_image=$DEPLOY_IMAGE"'''
                 }
             }
         }
-    }
 
     post {
 
