@@ -79,13 +79,78 @@
         group: devops
         mode: "0644"
 
-    - name: Copy Prometheus configuration
-      ansible.builtin.copy:
-        src: ../../docker/devops-stack/prometheus/prometheus.yml
+    - name: Create monitoring configuration directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: devops
+        group: devops
+        mode: "0755"
+      loop:
+        - "{{ stack_dir }}/prometheus"
+        - "{{ stack_dir }}/grafana"
+        - "{{ stack_dir }}/grafana/provisioning"
+        - "{{ stack_dir }}/grafana/provisioning/datasources"
+        - "{{ stack_dir }}/grafana/provisioning/dashboards"
+        - "{{ stack_dir }}/grafana/dashboards"
+        - "{{ stack_dir }}/sonar-exporter"
+
+    - name: Render Prometheus configuration
+      ansible.builtin.template:
+        src: ../templates/prometheus.yml.j2
         dest: "{{ stack_dir }}/prometheus/prometheus.yml"
         owner: devops
         group: devops
         mode: "0644"
+
+    - name: Copy Sonar exporter Dockerfile
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/sonar-exporter/Dockerfile
+        dest: "{{ stack_dir }}/sonar-exporter/Dockerfile"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Sonar exporter application
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/sonar-exporter/exporter.py
+        dest: "{{ stack_dir }}/sonar-exporter/exporter.py"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Grafana Prometheus datasource
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/grafana/provisioning/datasources/prometheus.yml
+        dest: "{{ stack_dir }}/grafana/provisioning/datasources/prometheus.yml"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Grafana observability dashboard
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/grafana/dashboards/cloud-devops-observability.json
+        dest: "{{ stack_dir }}/grafana/dashboards/cloud-devops-observability.json"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Grafana dashboard provider
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/grafana/provisioning/dashboards/dashboards.yml
+        dest: "{{ stack_dir }}/grafana/provisioning/dashboards/dashboards.yml"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Grafana observability dashboard
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/grafana/dashboards/cloud-devops-observability.json
+        dest: "{{ stack_dir }}/grafana/dashboards/cloud-devops-observability.json"
+        owner: devops
+        group: devops
+        mode: "0644"
+    
 
     - name: Copy Nginx configuration
       ansible.builtin.copy:

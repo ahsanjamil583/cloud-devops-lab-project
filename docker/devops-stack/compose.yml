@@ -16,6 +16,9 @@ services:
 
     environment:
       JENKINS_OPTS: "--prefix=/jenkins"
+      PROMETHEUS_ENDPOINT: "/prometheus/"
+      COLLECTING_METRICS_PERIOD_IN_SECONDS: "15"
+      COLLECT_DISK_USAGE: "false"
 
     expose:
       - "8080"
@@ -29,6 +32,9 @@ services:
 
     networks:
       - devops-network
+
+
+
 
 
   # ==========================================================
@@ -109,6 +115,7 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=7d"
 
     expose:
       - "9090"
@@ -140,6 +147,63 @@ services:
 
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+    networks:
+      - devops-network
+
+  # =====================================
+  # Management EC2 Node Exporter
+  # =====================================
+
+  node-exporter-management:
+    image: prom/node-exporter:v1.12.1
+    container_name: devops-node-exporter-management
+    restart: unless-stopped
+
+    pid: host
+
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+
+    expose:
+      - "9100"
+
+    networks:
+      - devops-network
+
+
+  # ========================================================
+  # Sonar Exporter
+  # ========================================================
+  sonar-exporter:
+    build:
+      context: ./sonar-exporter
+      dockerfile: Dockerfile
+
+    image: cloud-devops-sonar-exporter:phase12
+    container_name: devops-sonar-exporter
+    restart: unless-stopped
+
+    depends_on:
+      - sonarqube
+
+    environment:
+      SONAR_URL: "http://sonarqube:9000/sonar"
+      SONAR_PROJECT_KEY: "cloud-devops-lab-app"
+      SONAR_TOKEN: "${SONAR_MONITOR_TOKEN}"
+      EXPORTER_PORT: "9101"
+
+    expose:
+      - "9101"
 
     networks:
       - devops-network

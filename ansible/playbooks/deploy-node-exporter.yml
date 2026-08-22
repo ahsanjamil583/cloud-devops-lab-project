@@ -1,0 +1,61 @@
+---
+- name: Deploy Node Exporter to private application EC2
+  hosts: app
+  become: true
+  gather_facts: true
+
+  vars:
+    node_exporter_image: "prom/node-exporter:v1.12.1"
+
+  pre_tasks:
+
+    - name: Ensure management private IP was supplied
+      ansible.builtin.assert:
+        that:
+          - management_private_ip is defined
+          - management_private_ip | length > 0
+        fail_msg: >
+          management_private_ip is required.
+
+  tasks:
+
+    - name: Allow Node Exporter only from management EC2
+      ansible.builtin.command:
+        cmd: >-
+          ufw allow from {{ management_private_ip }}
+          to any port 9100 proto tcp
+      register: node_exporter_ufw
+      changed_when: >
+        'Rule added' in
+        (node_exporter_ufw.stdout + node_exporter_ufw.stderr)
+
+    - name: Deploy Node Exporter container
+      community.docker.docker_container:
+        name: node-exporter
+        image: "{{ node_exporter_image }}"
+        state: started
+        pull: missing
+        restart_policy: unless-stopped
+
+        network_mode: host
+
+        command: >-
+          --path.procfs=/host/proc
+          --path.sysfs=/host/sys
+          --path.rootfs=/rootfs
+          --web.listen-address=:9100
+
+        volumes:
+          - "/proc:/host/proc:ro"
+          - "/sys:/host/sys:ro"
+          - "/:/rootfs:ro,rslave"
+
+    - name: Verify Node Exporter locally
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:9100/metrics"
+        method: GET
+        status_code: 200
+      register: node_exporter_response
+      retries: 5
+      delay: 2
+      until: node_exporter_response.status == 200
