@@ -11,7 +11,7 @@ pipeline {
         booleanParam(
             name: 'FORCE_TEST_FAILURE',
             defaultValue: false,
-            description: 'Intentional CI failure drill'
+            description: 'Intentional unit-test CI failure drill'
         )
     }
 
@@ -76,9 +76,31 @@ pipeline {
                 script {
                     if (params.FORCE_TEST_FAILURE) {
                         error(
-                            'Intentional CI failure requested for Phase 9 validation'
+                            'Intentional CI failure requested for Phase 10 validation'
                         )
                     }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool 'SonarScanner'
+
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
@@ -105,11 +127,11 @@ pipeline {
     post {
 
         success {
-            echo 'CI pipeline PASSED.'
+            echo 'CI + SonarQube Quality Gate PASSED.'
         }
 
         failure {
-            echo 'CI pipeline FAILED. Check the failed stage.'
+            echo 'Pipeline FAILED. Check lint, tests, SonarQube analysis, or Quality Gate.'
         }
 
         always {

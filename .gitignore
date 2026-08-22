@@ -44,3 +44,6 @@ terraform/infrastructure/backend.hcl
 
 # Docker Compose environment secrets
 docker/devops-stack/.env
+
+
+.scannerwork/
