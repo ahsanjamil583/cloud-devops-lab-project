@@ -1,0 +1,18 @@
+apiVersion: 1
+
+providers:
+
+  - name: "Cloud DevOps Lab"
+    orgId: 1
+
+    folder: "Cloud DevOps Lab"
+
+    type: file
+
+    disableDeletion: false
+    editable: false
+
+    updateIntervalSeconds: 10
+
+    options:
+      path: /var/lib/grafana/dashboards
