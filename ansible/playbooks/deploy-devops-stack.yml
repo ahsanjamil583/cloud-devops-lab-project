@@ -94,6 +94,9 @@
         - "{{ stack_dir }}/grafana/provisioning/dashboards"
         - "{{ stack_dir }}/grafana/dashboards"
         - "{{ stack_dir }}/sonar-exporter"
+        - "{{ stack_dir }}/prometheus/rules"
+        - "{{ stack_dir }}/alertmanager"
+        - "{{ stack_dir }}/slack-mock"
 
     - name: Render Prometheus configuration
       ansible.builtin.template:
@@ -204,6 +207,63 @@
         owner: devops
         group: devops
         mode: "0644"
+
+    
+
+    - name: Copy Prometheus alert rules
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/prometheus/rules/alerts.yml
+        dest: "{{ stack_dir }}/prometheus/rules/alerts.yml"
+        owner: devops
+        group: devops
+        mode: "0644"
+    
+    - name: Render Alertmanager configuration
+      ansible.builtin.template:
+        src: ../templates/alertmanager.yml.j2
+        dest: "{{ stack_dir }}/alertmanager/alertmanager.yml"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Copy Slack mock Dockerfile
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/slack-mock/Dockerfile
+        dest: "{{ stack_dir }}/slack-mock/Dockerfile"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+
+    - name: Copy Slack mock receiver
+      ansible.builtin.copy:
+        src: ../../docker/devops-stack/slack-mock/receiver.py
+        dest: "{{ stack_dir }}/slack-mock/receiver.py"
+        owner: devops
+        group: devops
+        mode: "0644"
+
+    - name: Validate Prometheus configuration and rules
+      ansible.builtin.command:
+        cmd: >-
+          docker run --rm
+          --entrypoint /bin/promtool
+          -v {{ stack_dir }}/prometheus:/etc/prometheus:ro
+          prom/prometheus:v3.14.0
+          check config
+          /etc/prometheus/prometheus.yml
+      changed_when: false
+
+    - name: Validate Alertmanager configuration
+      ansible.builtin.command:
+        cmd: >-
+          docker run --rm
+          --entrypoint /bin/amtool
+          -v {{ stack_dir }}/alertmanager:/etc/alertmanager:ro
+          prom/alertmanager:v0.34.0
+          check-config
+          /etc/alertmanager/alertmanager.yml
+      changed_when: false
 
     - name: Deploy Docker Compose stack
       community.docker.docker_compose_v2:

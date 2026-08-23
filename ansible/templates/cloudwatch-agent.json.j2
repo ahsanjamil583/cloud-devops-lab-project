@@ -1,0 +1,71 @@
+{
+  "agent": {
+    "metrics_collection_interval": 60,
+    "region": "ap-south-1",
+    "run_as_user": "root"
+  },
+
+  "metrics": {
+
+    "namespace": "CloudDevOpsLab/EC2",
+
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}",
+      "InstanceType": "${aws:InstanceType}"
+    },
+
+    "metrics_collected": {
+
+      "mem": {
+        "measurement": [
+          "used_percent"
+        ],
+        "metrics_collection_interval": 60
+      },
+
+      "disk": {
+        "resources": [
+          "/"
+        ],
+
+        "measurement": [
+          "used_percent"
+        ],
+
+        "metrics_collection_interval": 60
+      }
+    }
+  },
+
+  "logs": {
+
+    "logs_collected": {
+
+      "files": {
+
+        "collect_list": [
+
+          {
+            "file_path": "/var/log/syslog",
+
+            "log_group_name": "/cloud-devops-lab/system",
+
+            "log_stream_name": "{{ inventory_hostname }}/{instance_id}/syslog",
+
+            "timezone": "UTC"
+          },
+
+          {
+            "file_path": "/var/log/auth.log",
+
+            "log_group_name": "/cloud-devops-lab/auth",
+
+            "log_stream_name": "{{ inventory_hostname }}/{instance_id}/auth",
+
+            "timezone": "UTC"
+          }
+        ]
+      }
+    }
+  }
+}

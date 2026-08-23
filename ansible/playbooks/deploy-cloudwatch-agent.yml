@@ -1,0 +1,97 @@
+---
+- name: Deploy CloudWatch Agent
+  hosts:
+    - management
+    - app
+
+  become: true
+  gather_facts: true
+
+
+  vars:
+
+    cloudwatch_arch_map:
+      x86_64: amd64
+      aarch64: arm64
+
+    cloudwatch_arch: >-
+      {{
+        cloudwatch_arch_map.get(
+          ansible_architecture,
+          'amd64'
+        )
+      }}
+
+    cloudwatch_package_url: >-
+      https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/{{ cloudwatch_arch }}/latest/amazon-cloudwatch-agent.deb
+
+    cloudwatch_package_path: >-
+      /tmp/amazon-cloudwatch-agent.deb
+
+    cloudwatch_config_path: >-
+      /opt/aws/amazon-cloudwatch-agent/etc/cloudwatch-agent.json
+
+
+  tasks:
+
+    - name: Ensure rsyslog is installed
+      ansible.builtin.apt:
+        name: rsyslog
+        state: present
+        update_cache: true
+
+
+    - name: Ensure rsyslog is running
+      ansible.builtin.systemd_service:
+        name: rsyslog
+        state: started
+        enabled: true
+
+
+    - name: Download CloudWatch Agent
+      ansible.builtin.get_url:
+        url: "{{ cloudwatch_package_url }}"
+        dest: "{{ cloudwatch_package_path }}"
+        mode: "0644"
+
+
+    - name: Install CloudWatch Agent
+      ansible.builtin.apt:
+        deb: "{{ cloudwatch_package_path }}"
+        state: present
+
+
+    - name: Render CloudWatch Agent configuration
+      ansible.builtin.template:
+        src: ../templates/cloudwatch-agent.json.j2
+        dest: "{{ cloudwatch_config_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+
+    - name: Start CloudWatch Agent with configuration
+      ansible.builtin.command:
+        cmd: >-
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
+          -a fetch-config
+          -m ec2
+          -s
+          -c file:{{ cloudwatch_config_path }}
+      changed_when: true
+
+
+    - name: Verify CloudWatch Agent service
+      ansible.builtin.command:
+        cmd: systemctl is-active amazon-cloudwatch-agent
+      register: cloudwatch_agent_status
+      changed_when: false
+      failed_when:
+        - cloudwatch_agent_status.stdout.strip() != "active"
+
+
+    - name: Show CloudWatch Agent status
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} CloudWatch Agent:
+          {{ cloudwatch_agent_status.stdout }}
