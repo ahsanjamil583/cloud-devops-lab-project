@@ -239,8 +239,8 @@ pipeline {
         }
 
         stage('Deploy to Private App EC2') {
-            steps {
-                sh '''
+    steps {
+        sh '''
             set +x
             set -eu
 
@@ -248,12 +248,7 @@ pipeline {
 
             cleanup_key() {
                 chmod 600 "$KEY_FILE" 2>/dev/null || true
-
-                if command -v shred >/dev/null 2>&1; then
-                    shred -u "$KEY_FILE" 2>/dev/null || rm -f "$KEY_FILE"
-                else
-                    rm -f "$KEY_FILE"
-                fi
+                rm -f "$KEY_FILE"
             }
 
             trap cleanup_key EXIT
@@ -269,9 +264,14 @@ pipeline {
 
             cd ansible
 
-            echo "Checking private application server..."
+            echo "Validating Jenkins inventory..."
+            ansible-inventory \
+                -i inventory/jenkins.ini \
+                --graph
 
+            echo "Checking private application server..."
             ansible "$APP_INVENTORY_GROUP" \
+                -i inventory/jenkins.ini \
                 -m ping \
                 --private-key "$KEY_FILE"
 
@@ -279,13 +279,14 @@ pipeline {
             echo "$DEPLOY_IMAGE"
 
             ansible-playbook \
+                -i inventory/jenkins.ini \
                 playbooks/deploy-app.yml \
                 --limit "$APP_INVENTORY_GROUP" \
                 --private-key "$KEY_FILE" \
                 -e "app_image=$DEPLOY_IMAGE"
         '''
-            }
-        }
+    }
+}
 
         stage('Verify AWS Identity') {
             steps {
