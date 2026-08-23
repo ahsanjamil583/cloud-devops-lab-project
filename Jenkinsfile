@@ -23,10 +23,19 @@ pipeline {
         APP_DIR = 'app'
         IMAGE_NAME = 'cloud-devops-lab-app'
         APP_INVENTORY_GROUP = 'app'
+        AWS_REGION = 'ap-south-1'
+        AWS_DEFAULT_REGION = 'ap-south-1'
+
+        SSM_DOCKERHUB_USERNAME = '/cloud-devops-lab/jenkins/dockerhub/username'
+
+        SSM_DOCKERHUB_TOKEN = '/cloud-devops-lab/jenkins/dockerhub/token'
+
+        SSM_DEPLOY_SSH_KEY = '/cloud-devops-lab/jenkins/deploy/ssh_private_key'
+
+        SSM_SONAR_TOKEN = '/cloud-devops-lab/jenkins/sonar/token'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -106,8 +115,24 @@ pipeline {
 
                     withSonarQubeEnv('SonarQube') {
                         sh """
-                            ${scannerHome}/bin/sonar-scanner
-                        """
+                    set +x
+                    set -e
+
+                    SONAR_TOKEN=\$(
+                        aws ssm get-parameter \
+                            --name "\$SSM_SONAR_TOKEN" \
+                            --with-decryption \
+                            --query Parameter.Value \
+                            --output text
+                    )
+
+                    test -n "\$SONAR_TOKEN"
+
+                    ${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.token="\$SONAR_TOKEN"
+
+                    unset SONAR_TOKEN
+                """
                     }
                 }
             }
@@ -140,84 +165,152 @@ pipeline {
             }
         }
 
-        stage('Publish Docker Image') {
+        stage('Resolve Deployment Metadata') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKERHUB_USER',
-                        passwordVariable: 'DOCKERHUB_TOKEN'
-                    )
-                ]) {
-                    script {
-                        env.DEPLOY_IMAGE =
-                            "${env.DOCKERHUB_USER}/cloud-devops-lab-app:${env.IMAGE_TAG}"
+                script {
+                    env.DOCKERHUB_USER = sh(
+                script: '''
+                    aws ssm get-parameter \
+                        --name "$SSM_DOCKERHUB_USERNAME" \
+                        --query Parameter.Value \
+                        --output text
+                ''',
+                returnStdout: true
+            ).trim()
 
-                        env.LATEST_IMAGE =
-                            "${env.DOCKERHUB_USER}/cloud-devops-lab-app:latest"
-                    }
+                    env.DEPLOY_IMAGE =
+                "${env.DOCKERHUB_USER}/cloud-devops-lab-app:${env.IMAGE_TAG}"
 
-                    sh '''
-                        set +x
-
-                        trap 'docker logout >/dev/null 2>&1 || true' EXIT
-
-                        echo "$DOCKERHUB_TOKEN" |
-                            docker login \
-                                --username "$DOCKERHUB_USER" \
-                                --password-stdin
-
-                        docker tag \
-                            "$IMAGE_NAME:ci-$BUILD_NUMBER" \
-                            "$DEPLOY_IMAGE"
-
-                        docker tag \
-                            "$IMAGE_NAME:ci-$BUILD_NUMBER" \
-                            "$LATEST_IMAGE"
-
-                        docker push "$DEPLOY_IMAGE"
-                        docker push "$LATEST_IMAGE"
-
-                        echo "Published image:"
-                        echo "$DEPLOY_IMAGE"
-                    '''
+                    env.LATEST_IMAGE =
+                "${env.DOCKERHUB_USER}/cloud-devops-lab-app:latest"
                 }
+
+                sh '''
+            echo "Deployment image:"
+            echo "$DEPLOY_IMAGE"
+        '''
             }
         }
 
-    stage('Deploy to Private App EC2') {
-        steps {
-            withCredentials([
-            sshUserPrivateKey(
-            credentialsId: 'app-deploy-ssh',
-            keyFileVariable: 'ANSIBLE_KEY'
-        )
-        ]) {
-            sh '''
-                cd ansible
+        stage('Publish Docker Image') {
+            steps {
+                sh '''
+            set +x
+            set -eu
 
-                echo "Checking Ansible target..."
-                ansible "$APP_INVENTORY_GROUP" \
-                    -m ping \
-                    --private-key "$ANSIBLE_KEY"
+            DOCKERHUB_TOKEN=$(
+                aws ssm get-parameter \
+                    --name "$SSM_DOCKERHUB_TOKEN" \
+                    --with-decryption \
+                    --query Parameter.Value \
+                    --output text
+            )
 
-                echo "Deploying image:"
-                echo "$DEPLOY_IMAGE"
+            test -n "$DOCKERHUB_TOKEN"
 
-                ansible-playbook \
-                    playbooks/deploy-app.yml \
-                    --limit "$APP_INVENTORY_GROUP" \
-                    --private-key "$ANSIBLE_KEY" \
-                    -e "app_image=$DEPLOY_IMAGE"
-                    '''
-                }
+            cleanup_docker_auth() {
+                docker logout >/dev/null 2>&1 || true
+                unset DOCKERHUB_TOKEN
+            }
+
+            trap cleanup_docker_auth EXIT
+
+            printf '%s' "$DOCKERHUB_TOKEN" |
+                docker login \
+                    --username "$DOCKERHUB_USER" \
+                    --password-stdin
+
+            docker tag \
+                "$IMAGE_NAME:ci-$BUILD_NUMBER" \
+                "$DEPLOY_IMAGE"
+
+            docker tag \
+                "$IMAGE_NAME:ci-$BUILD_NUMBER" \
+                "$LATEST_IMAGE"
+
+            docker push "$DEPLOY_IMAGE"
+
+            docker push "$LATEST_IMAGE"
+
+            echo "Published image:"
+            echo "$DEPLOY_IMAGE"
+        '''
+            }
+        }
+
+        stage('Deploy to Private App EC2') {
+            steps {
+                sh '''
+            set +x
+            set -eu
+
+            KEY_FILE=$(mktemp)
+
+            cleanup_key() {
+                chmod 600 "$KEY_FILE" 2>/dev/null || true
+
+                if command -v shred >/dev/null 2>&1; then
+                    shred -u "$KEY_FILE" 2>/dev/null || rm -f "$KEY_FILE"
+                else
+                    rm -f "$KEY_FILE"
+                fi
+            }
+
+            trap cleanup_key EXIT
+
+            aws ssm get-parameter \
+                --name "$SSM_DEPLOY_SSH_KEY" \
+                --with-decryption \
+                --query Parameter.Value \
+                --output text \
+                > "$KEY_FILE"
+
+            chmod 600 "$KEY_FILE"
+
+            cd ansible
+
+            echo "Checking private application server..."
+
+            ansible "$APP_INVENTORY_GROUP" \
+                -m ping \
+                --private-key "$KEY_FILE"
+
+            echo "Deploying:"
+            echo "$DEPLOY_IMAGE"
+
+            ansible-playbook \
+                playbooks/deploy-app.yml \
+                --limit "$APP_INVENTORY_GROUP" \
+                --private-key "$KEY_FILE" \
+                -e "app_image=$DEPLOY_IMAGE"
+        '''
+            }
+        }
+
+        stage('Verify AWS Identity') {
+            steps {
+                sh '''
+            set -eu
+
+            echo "Verifying Jenkins EC2 IAM identity..."
+
+            aws sts get-caller-identity \
+                --query Arn \
+                --output text
+
+            echo "Verifying approved SSM parameter access..."
+
+            aws ssm get-parameter \
+                --name "$SSM_DOCKERHUB_USERNAME" \
+                --query Parameter.Name \
+                --output text
+        '''
             }
         }
     }
     post {
-
         success {
-            echo "CI/CD pipeline PASSED."
+            echo 'CI/CD pipeline PASSED.'
             echo "Deployed image: ${env.DEPLOY_IMAGE}"
         }
 

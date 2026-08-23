@@ -164,10 +164,7 @@
         mode: "0644"
       notify: Reload Nginx
 
-    - name: Validate Nginx configuration
-      ansible.builtin.command:
-        cmd: docker exec devops-nginx nginx -t
-      changed_when: false
+    
 
 
     # --------------------------------------------------------
@@ -276,6 +273,10 @@
         ignore_build_events: true
       become_user: devops
 
+    - name: Validate Nginx configuration
+      ansible.builtin.command:
+        cmd: docker exec devops-nginx nginx -t
+      changed_when: false
 
   handlers:
     - name: Reload Nginx

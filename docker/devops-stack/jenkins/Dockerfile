@@ -41,3 +41,25 @@ RUN jenkins-plugin-cli \
     --plugin-file /usr/share/jenkins/ref/plugins.txt
 
 USER jenkins
+
+# ------------------------------------------------------------
+# AWS CLI v2
+# Jenkins uses the EC2 IAM role through IMDSv2.
+# No static AWS access keys are stored.
+# ------------------------------------------------------------
+USER root
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) aws_arch="x86_64" ;; \
+      arm64) aws_arch="aarch64" ;; \
+      *) echo "Unsupported architecture: $arch"; exit 1 ;; \
+    esac; \
+    curl -fsSL \
+      "https://awscli.amazonaws.com/awscli-exe-linux-${aws_arch}.zip" \
+      -o /tmp/awscliv2.zip; \
+    unzip -q /tmp/awscliv2.zip -d /tmp; \
+    /tmp/aws/install; \
+    rm -rf /tmp/aws /tmp/awscliv2.zip
+
+USER jenkins
