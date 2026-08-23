@@ -20,12 +20,14 @@ resource "aws_instance" "management" {
 
   key_name = aws_key_pair.devops.key_name
 
-  iam_instance_profile = aws_iam_instance_profile.ec2.name
+  iam_instance_profile = aws_iam_instance_profile.management_ci.name
 
   # Require Instance Metadata Service v2.
   metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+    instance_metadata_tags      = "disabled"
   }
 
   root_block_device {
@@ -71,8 +73,10 @@ resource "aws_instance" "app" {
   iam_instance_profile = aws_iam_instance_profile.ec2.name
 
   metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 1
+    instance_metadata_tags      = "disabled"
   }
 
   root_block_device {

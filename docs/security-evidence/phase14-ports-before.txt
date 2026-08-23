@@ -1,0 +1,27 @@
+management | CHANGED | rc=0 >>
+Netid State  Recv-Q Send-Q   Local Address:Port  Peer Address:PortProcess                                                 
+udp   UNCONN 0      0           127.0.0.54:53         0.0.0.0:*    users:(("systemd-resolve",pid=366,fd=16))              
+udp   UNCONN 0      0        127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=366,fd=14))              
+udp   UNCONN 0      0      10.10.1.58%ens5:68         0.0.0.0:*    users:(("systemd-network",pid=576,fd=23))              
+udp   UNCONN 0      0            127.0.0.1:323        0.0.0.0:*    users:(("chronyd",pid=731,fd=5))                       
+udp   UNCONN 0      0                [::1]:323           [::]:*    users:(("chronyd",pid=731,fd=6))                       
+tcp   LISTEN 0      4096         127.0.0.1:42713      0.0.0.0:*    users:(("containerd",pid=700,fd=13))                   
+tcp   LISTEN 0      4096     127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=366,fd=15))              
+tcp   LISTEN 0      4096           0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=1238,fd=3),("systemd",pid=1,fd=228))
+tcp   LISTEN 0      4096         127.0.0.1:8088       0.0.0.0:*    users:(("docker-proxy",pid=53740,fd=7))                
+tcp   LISTEN 0      4096        127.0.0.54:53         0.0.0.0:*    users:(("systemd-resolve",pid=366,fd=17))              
+tcp   LISTEN 0      4096              [::]:22            [::]:*    users:(("sshd",pid=1238,fd=4),("systemd",pid=1,fd=229))
+app | CHANGED | rc=0 >>
+Netid State  Recv-Q Send-Q   Local Address:Port  Peer Address:PortProcess                                                  
+udp   UNCONN 0      0           127.0.0.54:53         0.0.0.0:*    users:(("systemd-resolve",pid=26958,fd=16))             
+udp   UNCONN 0      0        127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=26958,fd=14))             
+udp   UNCONN 0      0      10.10.2.99%ens5:68         0.0.0.0:*    users:(("systemd-network",pid=26954,fd=23))             
+udp   UNCONN 0      0            127.0.0.1:323        0.0.0.0:*    users:(("chronyd",pid=4972,fd=5))                       
+udp   UNCONN 0      0                [::1]:323           [::]:*    users:(("chronyd",pid=4972,fd=6))                       
+tcp   LISTEN 0      4096        127.0.0.54:53         0.0.0.0:*    users:(("systemd-resolve",pid=26958,fd=17))             
+tcp   LISTEN 0      4096           0.0.0.0:22         0.0.0.0:*    users:(("sshd",pid=26951,fd=3),("systemd",pid=1,fd=247))
+tcp   LISTEN 0      4096         127.0.0.1:3000       0.0.0.0:*    users:(("docker-proxy",pid=34764,fd=7))                 
+tcp   LISTEN 0      4096     127.0.0.53%lo:53         0.0.0.0:*    users:(("systemd-resolve",pid=26958,fd=15))             
+tcp   LISTEN 0      4096         127.0.0.1:36643      0.0.0.0:*    users:(("containerd",pid=4122,fd=13))                   
+tcp   LISTEN 0      4096                 *:9100             *:*    users:(("node_exporter",pid=80638,fd=4))                
+tcp   LISTEN 0      4096              [::]:22            [::]:*    users:(("sshd",pid=26951,fd=4),("systemd",pid=1,fd=248))
