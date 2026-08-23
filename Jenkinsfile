@@ -239,8 +239,8 @@ pipeline {
         }
 
         stage('Deploy to Private App EC2') {
-    steps {
-        sh '''
+            steps {
+                sh '''
             set +x
             set -eu
 
@@ -285,8 +285,8 @@ pipeline {
                 --private-key "$KEY_FILE" \
                 -e "app_image=$DEPLOY_IMAGE"
         '''
-    }
-}
+            }
+        }
 
         stage('Verify AWS Identity') {
             steps {
