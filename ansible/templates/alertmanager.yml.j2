@@ -1,0 +1,30 @@
+route:
+
+  receiver: "slack-notifications"
+
+  group_by:
+    - alertname
+    - service
+
+  group_wait: 10s
+
+  group_interval: 1m
+
+  repeat_interval: 4h
+
+
+receivers:
+
+  - name: "slack-notifications"
+
+    slack_configs:
+
+      - api_url: "{{ vault_slack_webhook_url | default('http://slack-mock:8080/slack', true) }}"
+
+        send_resolved: true
+
+        title: "Cloud DevOps Lab Alert"
+
+        text: >-
+          Prometheus alert state changed.
+          Check Alertmanager and Grafana for details.

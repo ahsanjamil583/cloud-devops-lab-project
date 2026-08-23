@@ -122,6 +122,7 @@ services:
 
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
 
     networks:
@@ -208,6 +209,61 @@ services:
     networks:
       - devops-network
 
+  # ==========================================================
+  # Alertmanager
+  # ==========================================================
+
+  alertmanager:
+
+    image: prom/alertmanager:v0.34.0
+
+    container_name: devops-alertmanager
+
+    restart: unless-stopped
+
+    command:
+
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+
+      - "--storage.path=/alertmanager"
+
+    expose:
+
+      - "9093"
+
+    volumes:
+
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+      - alertmanager_data:/alertmanager
+
+    networks:
+
+      - devops-network
+
+  # ==========================================================
+  # Slack-compatible mock webhook receiver
+  # ==========================================================
+
+  slack-mock:
+
+    build:
+      context: ./slack-mock
+      dockerfile: Dockerfile
+
+    image: cloud-devops-slack-mock:phase13
+
+    container_name: devops-slack-mock
+
+    restart: unless-stopped
+
+    expose:
+
+      - "8080"
+
+    networks:
+
+      - devops-network
 
   # ==========================================================
   # Nginx
@@ -270,3 +326,6 @@ volumes:
 
   grafana_data:
     name: cloud-grafana-data
+
+  alertmanager_data:
+    name: cloud-alertmanager-data

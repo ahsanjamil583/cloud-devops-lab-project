@@ -1,0 +1,27 @@
+groups:
+
+  - name: cloud-devops-platform-alerts
+
+    rules:
+
+      # ======================================================
+      # Jenkins Down
+      # ======================================================
+
+      - alert: JenkinsDown
+
+        expr: up{job="jenkins"} == 0
+
+        for: 5m
+
+        labels:
+          severity: critical
+          service: jenkins
+          environment: lab
+
+        annotations:
+          summary: "Jenkins is down"
+
+          description: >-
+            Prometheus has been unable to scrape Jenkins
+            continuously for more than five minutes.
