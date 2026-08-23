@@ -1,0 +1,297 @@
+---
+- name: Security hardening
+  hosts:
+    - management
+    - app
+
+  become: true
+  gather_facts: true
+
+
+  pre_tasks:
+
+    - name: Ensure devops account exists
+      ansible.builtin.command:
+        cmd: id devops
+      changed_when: false
+
+
+    - name: Ensure SSH public-key authentication works before hardening
+      ansible.builtin.assert:
+        that:
+          - ansible_user is defined
+        fail_msg: >
+          Current Ansible SSH connection is not established.
+          Do not harden SSH until key-based access works.
+
+
+  tasks:
+
+    # ========================================================
+    # Security packages
+    # ========================================================
+
+    - name: Install host security packages
+      ansible.builtin.apt:
+        name:
+          - ufw
+          - fail2ban
+          - openssh-server
+        state: present
+        update_cache: true
+
+
+    # ========================================================
+    # UFW defaults
+    # ========================================================
+
+    - name: Set default incoming firewall policy
+      community.general.ufw:
+        direction: incoming
+        policy: deny
+
+
+    - name: Set default outgoing firewall policy
+      community.general.ufw:
+        direction: outgoing
+        policy: allow
+
+
+    # Management SSH is additionally restricted by AWS SG.
+    - name: Allow SSH on management host
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+      when:
+        - inventory_hostname in groups['management']
+
+
+    # Private App SSH only from management host.
+    - name: Allow App SSH from management
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ management_private_ip }}"
+        port: "22"
+        proto: tcp
+      when:
+        - inventory_hostname in groups['app']
+
+
+    # Prometheus Node Exporter.
+    - name: Allow Node Exporter from management host
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ management_private_ip }}"
+        port: "9100"
+        proto: tcp
+      when:
+        - inventory_hostname in groups['app']
+
+
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+
+
+    # ========================================================
+    # OpenSSH
+    # ========================================================
+
+    - name: Install SSH hardening configuration
+      ansible.builtin.template:
+        src: ../templates/99-cloud-devops-hardening.conf.j2
+        dest: /etc/ssh/sshd_config.d/99-cloud-devops-hardening.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload SSH
+
+
+    - name: Validate SSH configuration
+      ansible.builtin.command:
+        cmd: sshd -t
+      changed_when: false
+
+
+    # ========================================================
+    # Fail2Ban
+    # ========================================================
+
+    - name: Install Fail2Ban SSH jail
+      ansible.builtin.template:
+        src: ../templates/fail2ban-sshd.local.j2
+        dest: /etc/fail2ban/jail.d/cloud-devops-sshd.local
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Fail2Ban
+
+
+    - name: Ensure Fail2Ban is enabled
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        enabled: true
+        state: started
+
+
+  handlers:
+
+    - name: Reload SSH
+      ansible.builtin.systemd_service:
+        name: ssh
+        state: reloaded
+
+
+    - name: Restart Fail2Ban
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        state: restarted---
+- name: Security hardening
+  hosts:
+    - management
+    - app
+
+  become: true
+  gather_facts: true
+
+
+  pre_tasks:
+
+    - name: Ensure devops account exists
+      ansible.builtin.command:
+        cmd: id devops
+      changed_when: false
+
+
+    - name: Ensure SSH public-key authentication works before hardening
+      ansible.builtin.assert:
+        that:
+          - ansible_user is defined
+        fail_msg: >
+          Current Ansible SSH connection is not established.
+          Do not harden SSH until key-based access works.
+
+
+  tasks:
+
+    # ========================================================
+    # Security packages
+    # ========================================================
+
+    - name: Install host security packages
+      ansible.builtin.apt:
+        name:
+          - ufw
+          - fail2ban
+          - openssh-server
+        state: present
+        update_cache: true
+
+
+    # ========================================================
+    # UFW defaults
+    # ========================================================
+
+    - name: Set default incoming firewall policy
+      community.general.ufw:
+        direction: incoming
+        policy: deny
+
+
+    - name: Set default outgoing firewall policy
+      community.general.ufw:
+        direction: outgoing
+        policy: allow
+
+
+    # Management SSH is additionally restricted by AWS SG.
+    - name: Allow SSH on management host
+      community.general.ufw:
+        rule: allow
+        port: "22"
+        proto: tcp
+      when:
+        - inventory_hostname in groups['management']
+
+
+    # Private App SSH only from management host.
+    - name: Allow App SSH from management
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ management_private_ip }}"
+        port: "22"
+        proto: tcp
+      when:
+        - inventory_hostname in groups['app']
+
+
+    # Prometheus Node Exporter.
+    - name: Allow Node Exporter from management host
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ management_private_ip }}"
+        port: "9100"
+        proto: tcp
+      when:
+        - inventory_hostname in groups['app']
+
+
+    - name: Enable UFW
+      community.general.ufw:
+        state: enabled
+
+
+    # ========================================================
+    # OpenSSH
+    # ========================================================
+
+    - name: Install SSH hardening configuration
+      ansible.builtin.template:
+        src: ../templates/99-cloud-devops-hardening.conf.j2
+        dest: /etc/ssh/sshd_config.d/99-cloud-devops-hardening.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload SSH
+
+
+    - name: Validate SSH configuration
+      ansible.builtin.command:
+        cmd: sshd -t
+      changed_when: false
+
+
+    # ========================================================
+    # Fail2Ban
+    # ========================================================
+
+    - name: Install Fail2Ban SSH jail
+      ansible.builtin.template:
+        src: ../templates/fail2ban-sshd.local.j2
+        dest: /etc/fail2ban/jail.d/cloud-devops-sshd.local
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart Fail2Ban
+
+
+    - name: Ensure Fail2Ban is enabled
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        enabled: true
+        state: started
+
+
+  handlers:
+
+    - name: Reload SSH
+      ansible.builtin.systemd_service:
+        name: ssh
+        state: reloaded
+
+
+    - name: Restart Fail2Ban
+      ansible.builtin.systemd_service:
+        name: fail2ban
+        state: restarted

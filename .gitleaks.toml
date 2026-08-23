@@ -1,0 +1,6 @@
+[allowlist]
+description = "Known non-secret Phase 10 SonarQube failure demo"
+
+paths = [
+  '''app/sonar-failure-demo\.js'''
+]

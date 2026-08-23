@@ -47,3 +47,4 @@ docker/devops-stack/.env
 
 
 .scannerwork/
+.ansible-vault-password

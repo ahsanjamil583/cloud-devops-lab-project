@@ -1,0 +1,31 @@
+# Managed by Ansible — Cloud DevOps Lab
+
+PermitRootLogin no
+
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+
+PubkeyAuthentication yes
+
+MaxAuthTries 3
+LoginGraceTime 30
+
+X11Forwarding no
+AllowAgentForwarding no
+GatewayPorts no
+PermitTunnel no
+
+{% if inventory_hostname in groups['management'] %}
+# Required for our SSH tunnel and ProxyJump architecture.
+AllowTcpForwarding yes
+{% else %}
+AllowTcpForwarding no
+{% endif %}
+
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# Keep both key-only operational users during the lab.
+# Root is explicitly excluded.
+AllowUsers devops ubuntu

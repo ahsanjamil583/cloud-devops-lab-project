@@ -1,0 +1,21 @@
+[sshd]
+
+enabled = true
+
+backend = systemd
+
+port = ssh
+
+maxretry = 5
+
+findtime = 10m
+
+bantime = 1h
+
+banaction = ufw
+
+{% if inventory_hostname in groups['app'] %}
+ignoreip = 127.0.0.1/8 ::1 {{ management_private_ip }}
+{% else %}
+ignoreip = 127.0.0.1/8 ::1
+{% endif %}
