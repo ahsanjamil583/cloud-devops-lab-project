@@ -1,0 +1,122 @@
+flowchart TB
+
+    DEV["Developer"]
+    GH["GitHub Repository"]
+    DH["DockerHub"]
+    USER["Operator Browser"]
+    SLACK["Slack / Mock Webhook"]
+    SSM["AWS SSM Parameter Store<br/>SecureString"]
+    CW["CloudWatch<br/>Logs + Metrics + Alarms"]
+
+    DEV -->|git push| GH
+
+    subgraph AWS["AWS — ap-south-1"]
+
+        subgraph VPC["VPC — 10.10.0.0/16"]
+
+            IGW["Internet Gateway"]
+            NAT["NAT Gateway"]
+
+            subgraph PUBLIC["Public Subnet — 10.10.1.0/24"]
+
+                MGMT["Management / Bastion EC2"]
+
+                CWAM["CloudWatch Agent"]
+
+                subgraph STACK["Docker Compose — Management EC2"]
+
+                    NGINX["Nginx<br/>127.0.0.1:8088"]
+
+                    JENKINS["Jenkins<br/>/jenkins/"]
+
+                    SONAR["SonarQube<br/>/sonar/"]
+
+                    POSTGRES["PostgreSQL<br/>Sonar DB"]
+
+                    PROM["Prometheus"]
+
+                    GRAFANA["Grafana<br/>/grafana/"]
+
+                    ALERT["Alertmanager"]
+
+                    NODEM["Node Exporter<br/>Management"]
+
+                    SONAREXP["Sonar Quality Exporter"]
+
+                end
+
+            end
+
+            subgraph PRIVATE["Private Subnet — 10.10.2.0/24"]
+
+                APPHOST["Private Application EC2"]
+
+                APP["Node.js App Container<br/>127.0.0.1:3000"]
+
+                NODEA["Node Exporter<br/>:9100"]
+
+                CWAA["CloudWatch Agent"]
+
+            end
+
+        end
+
+    end
+
+
+    %% CI/CD
+    GH -->|SCM checkout| JENKINS
+
+    JENKINS -->|Static analysis| SONAR
+
+    SONAR --> POSTGRES
+
+    JENKINS -->|Docker image push| DH
+
+    DH -->|Docker image pull| APPHOST
+
+    JENKINS -->|Ansible over SSH| APPHOST
+
+    APPHOST --> APP
+
+
+    %% Secrets
+    SSM -->|IAM + GetParameter| JENKINS
+
+
+    %% Reverse proxy
+    USER -->|SSH tunnel| MGMT
+
+    MGMT --> NGINX
+
+    NGINX --> JENKINS
+    NGINX --> SONAR
+    NGINX --> GRAFANA
+
+
+    %% Monitoring
+    PROM -->|scrape| NODEM
+    PROM -->|scrape via VPC| NODEA
+    PROM -->|scrape| JENKINS
+    PROM -->|scrape| SONAREXP
+
+    SONAREXP -->|Sonar Web API| SONAR
+
+    GRAFANA -->|PromQL| PROM
+
+
+    %% Alerts
+    PROM --> ALERT
+    ALERT --> SLACK
+
+
+    %% AWS networking
+    MGMT --> IGW
+
+    APPHOST --> NAT
+    NAT --> IGW
+
+
+    %% CloudWatch
+    CWAM --> CW
+    CWAA --> CW

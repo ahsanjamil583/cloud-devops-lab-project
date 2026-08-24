@@ -18,6 +18,13 @@ Build a secure, automated and observable DevOps environment using:
 - Nginx
 - AWS CloudWatch
 
+## Documentation
+
+- [Architecture Diagram](architecture-diagram.png)
+- [Operations Guide](operations-guide.md)
+- [Decision Log](decision-log.md)
+- [Architecture Diagram Mermaid Source](docs/architecture-diagram.mmd)
+
 ## High-Level Architecture
 
 The project uses two AWS EC2 instances:
