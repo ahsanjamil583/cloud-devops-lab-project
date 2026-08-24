@@ -173,10 +173,11 @@ check \
 check \
     "SonarQube reports UP" \
     "cd '${ANSIBLE_DIR}' &&
-     ansible management -b -m shell -a '
-       curl -fsS \
-         http://127.0.0.1:8088/sonar/api/system/status |
-         grep -q '\"'\"'status'\"'\"':'\"'\"'UP'\"'\"'
+     ansible management -b --become-user devops -m shell -a '
+       docker exec devops-sonarqube \
+         curl -fsS \
+         http://127.0.0.1:9000/sonar/api/system/status |
+         grep -q UP
      ' >/dev/null"
 
 
